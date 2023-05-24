@@ -188,74 +188,6 @@ def get_user_most_viewed(messages):
     return user
 
 
-def get_list_of_threads(message):
-    thread_list = []
-    for post in messages:
-        if post['reply_for'] is None:
-            thread_list.append(post['id'])
-    return thread_list
-
-
-def get_replies_to_post(messages, id):
-    list_of_replies = []
-    list_of_replies.clear()
-    for post in messages:
-        if post['reply_for'] == id:
-            list_of_replies.append(post['id'])
-    return list_of_replies
-
-
-def merge_lists(list1, list2):
-    merged_list = list1.copy()
-    for item in list2:
-        merged_list.append(item)
-    return merged_list
-
-
-def get_replies_to_posts_list(messages, posts):
-    replies_list = []
-    replies_list.clear()
-    new_replies_list = []
-    merged_replies_list = []
-    for post in posts:
-        new_replies_list = get_replies_to_post(messages, post)
-        merged_replies_list = merge_lists(replies_list, new_replies_list)
-        replies_list.clear()
-        replies_list = merged_replies_list.copy()
-    return replies_list
-
-
-def get_replies_to_thread(messages, id):
-    replies_list = get_replies_to_post(messages, id)
-    current_level_replies_list = replies_list.copy()
-    next_level_replies_list = []
-    not_end_of_thread = True
-    while not_end_of_thread:
-        next_level_replies_list.clear()
-        next_level_replies_list = get_replies_to_posts_list(messages, current_level_replies_list)
-        if len(next_level_replies_list) == 0:
-            return replies_list
-        replies_list = replies_list + current_level_replies_list
-        current_level_replies_list.clear()
-        current_level_replies_list = next_level_replies_list.copy()
-
-
-def get_longest_thread(messages):
-    threads = get_list_of_threads(messages)
-    max_length_of_thread = 0
-    max_thread = []
-    max_thread.clear()
-    for thread in threads:
-        current_thread_length = len(get_replies_to_thread(messages, thread))
-        if current_thread_length > max_length_of_thread:
-            max_length_of_thread = current_thread_length
-            max_thread.clear()
-            max_thread.append(thread)
-        elif current_thread_length == max_length_of_thread:
-            max_thread.append(thread)
-        return max_thread
-
-
 day_period = {'morning': 12, 'afternoon': 18, 'evening': 24}
 
 
@@ -279,13 +211,14 @@ def get_messages_daytime(messages):
             evening_counts += 1
     return mornings_count, afternoon_counts, mornings_count
 
+
 def get_posts_without_reply(messages):
     reply_list_posts = []
     reply_list_posts.clear()
     for post in messages:
-        if post['reply_for'] != None:
+        if post['reply_for'] is not None:
             reply_list_posts.append(post['reply_for'])
-    list_posts = [] 
+    list_posts = []
     list_posts.clear()
     for post in messages:
         if not post['id'] in reply_list_posts:
@@ -311,7 +244,7 @@ def get_thread_length(messages, id):
         current_id = prev_level_id
 
 
-def get_longest_thread_alt(messages):
+def get_longest_thread(messages):
     max_thread = 0
     longest_thread = []
     longest_thread.clear()
@@ -332,6 +265,6 @@ if __name__ == "__main__":
     print(f'User with most posts - {get_user_most_posts(messages)}')
     print(f'User with most replies for her posts - {get_user_most_replied(messages)}')
     print(f'User with mosts views for posts - {get_user_most_viewed(messages)}')
-    print(f'Longest thread with max replies - {get_longest_thread_alt(messages)}')
+    print(f'Longest thread with max replies - {get_longest_thread(messages)}')
     mornings_count, afternoon_counts, evening_counts = get_messages_daytime(messages)
     print(f'Morning posts - {mornings_count}, afternoon posts - {afternoon_counts}, evening posts - {evening_counts}')
