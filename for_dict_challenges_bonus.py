@@ -305,7 +305,7 @@ def get_thread_length(messages, id):
     current_id = id
     while True:
         prev_level_id = get_previous_level_starter_for_post(messages, current_id)
-        if prev_level_id == None:
+        if prev_level_id is None:
             return counter
         counter += 1
         current_id = prev_level_id
@@ -324,7 +324,7 @@ def get_longest_thread_alt(messages):
             longest_thread.append(post)
         elif current_thread_length == max_thread:
             longest_thread.append(post)
-        return longest_thread, max_thread
+    return longest_thread, max_thread
 
 
 if __name__ == "__main__":
