@@ -279,12 +279,59 @@ def get_messages_daytime(messages):
             evening_counts += 1
     return mornings_count, afternoon_counts, mornings_count
 
+def get_posts_without_reply(messages):
+    reply_list_posts = []
+    reply_list_posts.clear()
+    for post in messages:
+        if post['reply_for'] != None:
+            reply_list_posts.append(post['reply_for'])
+    list_posts = [] 
+    list_posts.clear()
+    for post in messages:
+        if not post['id'] in reply_list_posts:
+            list_posts.append(post['id'])
+    return list_posts
+
+
+def get_previous_level_starter_for_post(messages, id):
+    for post in messages:
+        if post['id'] == id:
+            return post['reply_for']
+    return None
+
+
+def get_thread_length(messages, id):
+    counter = 1
+    current_id = id
+    while True:
+        prev_level_id = get_previous_level_starter_for_post(messages, current_id)
+        if prev_level_id == None:
+            return counter
+        counter += 1
+        current_id = prev_level_id
+
+
+def get_longest_thread_alt(messages):
+    max_thread = 0
+    longest_thread = []
+    longest_thread.clear()
+    check_list = get_posts_without_reply(messages)
+    for post in check_list:
+        current_thread_length = get_thread_length(messages, post)
+        if current_thread_length > max_thread:
+            max_thread = current_thread_length
+            longest_thread.clear()
+            longest_thread.append(post)
+        elif current_thread_length == max_thread:
+            longest_thread.append(post)
+        return longest_thread, max_thread
+
 
 if __name__ == "__main__":
     messages = generate_chat_history()
     print(f'User with most posts - {get_user_most_posts(messages)}')
     print(f'User with most replies for her posts - {get_user_most_replied(messages)}')
     print(f'User with mosts views for posts - {get_user_most_viewed(messages)}')
-    print(f'Thread with max replies - {get_longest_thread(messages)}')
+    print(f'Longest thread with max replies - {get_longest_thread_alt(messages)}')
     mornings_count, afternoon_counts, evening_counts = get_messages_daytime(messages)
     print(f'Morning posts - {mornings_count}, afternoon posts - {afternoon_counts}, evening posts - {evening_counts}')
