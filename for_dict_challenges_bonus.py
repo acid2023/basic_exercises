@@ -34,7 +34,6 @@ import random
 import uuid
 import datetime
 import lorem
-import csv
 
 
 def generate_chat_history():
@@ -66,128 +65,6 @@ def generate_chat_history():
     return messages
 
 
-def save_chat(message):
-    with open('chat.csv', 'w', encoding='utf-8', newline='') as f:
-        fields = ["id", "sent_at", "sent_by", "reply_for", "seen_by", "text"]
-        writer = csv.DictWriter(f, fields, delimiter=';')
-        writer.writeheader()
-        for record in messages:
-            writer.writerow(record)
-
-
-def read_chat():
-    with open('chat.csv', 'r', encoding='utf-8', newline='') as f1:
-        fields = ["id", "sent_at", "sent_by", "reply_for", "seen_by", "text"]
-        records = csv.DictReader(f1, fields, delimiter=';')
-        return records
-
-
-def create_message_senders_list(messages):
-    user_list = []
-    for record in messages:
-        if record['sent_by'] not in user_list:
-            user_list.append(record['sent_by'])
-    return user_list
-
-
-def get_quantity_of_posts(messages, user):
-    posts_count = 0
-    for record in messages:
-        if record['sent_by'] == user:
-            posts_count += 1
-    return posts_count
-
-
-def get_user_most_posts(messages):
-    sender_list = create_message_senders_list(messages)
-    user = []
-    user.clear()
-    max_posts = 0
-    for sender in sender_list:
-        sender_posts = get_quantity_of_posts(messages, sender)
-        if sender_posts > max_posts:
-            max_posts = sender_posts
-            user.clear()
-            user.append(sender)
-        elif sender_posts == max_posts:
-            user.append(sender)
-    return user
-
-
-def get_user_from_post_id(messages, id):
-    user = ''
-    for post in messages:
-        if post['id'] == id:
-            user = post['sent_by']
-    return user
-
-
-def get_posts_from_user(message, user):
-    user_posts = []
-    for post in messages:
-        if post['sent_by'] == user:
-            user_posts.append(post['id'])
-    return user_posts
-
-
-def get_user_replies(messages, user):
-    count_replies = 0
-    for post in messages:
-        reply_for_id = post['reply_for']
-        sender = get_user_from_post_id(messages, reply_for_id)
-        if sender == user:
-            count_replies += 1
-    return count_replies
-
-
-def get_user_most_replied(messages):
-    sender_list = create_message_senders_list(messages)
-    user = []
-    user.clear()
-    max_replies = 0
-    for sender in sender_list:
-        user_replies = get_user_replies(messages, sender)
-        if user_replies > max_replies:
-            max_replies = user_replies
-            user.clear()
-            user.append(sender)
-        elif user_replies == max_replies:
-            user.append(sender)
-    return user
-
-
-def get_post_views(messages, id):
-    for post in messages:
-        if post['id'] == id:
-            return len(list(set(post['seen_by'])))
-
-
-def get_user_posts_views(message, user):
-    posts_count = 0
-    for post in messages:
-        sender = post['sent_by']
-        id_message = post['id']
-        if sender == user:
-            posts_count += get_post_views(messages, id_message)
-    return posts_count
-
-
-def get_user_most_viewed(messages):
-    sender_list = create_message_senders_list(messages)
-    user = []
-    user.clear()
-    max_views = 0
-    for sender in sender_list:
-        user_views = get_user_posts_views(messages, sender)
-        if user_views > max_views:
-            max_views = user_views
-            user.clear()
-            user.append(sender)
-        elif user_views == max_views:
-            user.append(sender)
-    return user
-
-
 day_period = {'morning': 12, 'afternoon': 18, 'evening': 24}
 
 
@@ -212,59 +89,87 @@ def get_messages_daytime(messages):
     return mornings_count, afternoon_counts, mornings_count
 
 
-def get_posts_without_reply(messages):
-    reply_list_posts = []
-    reply_list_posts.clear()
+def indexing_replies(messages):
+    messages_index = {'sender': {}, 'thread': {}}
     for post in messages:
-        if post['reply_for'] is not None:
-            reply_list_posts.append(post['reply_for'])
-    list_posts = []
-    list_posts.clear()
+        messages_index['sender'][post['id']] = post['sent_by']
+        messages_index['thread'][post['id']] = post['reply_for']
+    return messages_index
+
+
+def get_posts_stats(messages, replies_index):
+    post_stat = {'most_posts': {}, 'most_replies': {}, 'most_views': {}}
+    max_posts = 0
+    max_replies = 0
+    max_views = 0
     for post in messages:
-        if not post['id'] in reply_list_posts:
-            list_posts.append(post['id'])
-    return list_posts
+        if post_stat['most_posts'].get(post['sent_by'], None) is None:
+            post_stat['most_posts'][post['sent_by']] = 1
+        else:
+            post_stat['most_posts'][post['sent_by']] += 1
+        if post_stat['most_posts'][post['sent_by']] > max_posts:
+            max_posts = post_stat['most_posts'][post['sent_by']]
+            max_posts_user = [post['sent_by']]
+        elif post_stat['most_posts'][post['sent_by']] == max_posts:
+            max_posts_user.append(post['sent_by'])
+        if post_stat['most_views'].get(post['sent_by'], None) is None:
+            post_stat['most_views'][post['sent_by']] = post['seen_by']
+        else:
+            post_stat['most_views'][post['sent_by']] = post_stat['most_views'][post['sent_by']] + post['seen_by']
+        if len(post_stat['most_views'][post['sent_by']]) > max_views:
+            max_views = len(post_stat['most_views'][post['sent_by']])
+            max_views_user = [post['sent_by']]
+        elif len(post_stat['most_views'][post['sent_by']]) == max_views:
+            max_views_user.append(post['sent_by'])
+        reply_for = post.get('reply_for', None)
+        if reply_for is not None:
+            sender = replies_index['sender'][post['reply_for']]
+        else:
+            sender = ''
+        if sender != '':
+            if post_stat['most_replies'].get(sender, 'None') == 'None':
+                post_stat['most_replies'][sender] = 1
+            else:
+                post_stat['most_replies'][sender] += 1
+            if post_stat['most_replies'][sender] > max_replies:
+                max_replies = post_stat['most_replies'][sender]
+                max_replies_user = [sender]
+            elif post_stat['most_replies'][sender] == max_replies:
+                max_replies_user.append(sender)
+    user_stats = [max_posts_user, max_replies_user, max_views_user]
+    return user_stats
 
 
-def get_previous_level_starter_for_post(messages, id):
+def get_longest_thread_new(messages, replies_index):
+    max_thread = []
+    max_thread_count = 0
     for post in messages:
-        if post['id'] == id:
-            return post['reply_for']
-    return None
-
-
-def get_thread_length(messages, id):
-    counter = 1
-    current_id = id
-    while True:
-        prev_level_id = get_previous_level_starter_for_post(messages, current_id)
-        if prev_level_id is None:
-            return counter
-        counter += 1
-        current_id = prev_level_id
-
-
-def get_longest_thread(messages):
-    max_thread = 0
-    longest_thread = []
-    longest_thread.clear()
-    check_list = get_posts_without_reply(messages)
-    for post in check_list:
-        current_thread_length = get_thread_length(messages, post)
-        if current_thread_length > max_thread:
-            max_thread = current_thread_length
-            longest_thread.clear()
-            longest_thread.append(post)
-        elif current_thread_length == max_thread:
-            longest_thread.append(post)
-    return longest_thread, max_thread
+        thread_count = 0
+        reply_for = post['reply_for']
+        while True:
+            thread_count += 1
+            if reply_for is None or reply_for == '':
+                break
+            next_reply_for = replies_index['thread'].get(reply_for, None)
+            if next_reply_for is None:
+                break
+            reply_for = next_reply_for
+        if thread_count > max_thread_count:
+            max_thread_count = thread_count
+            max_thread = [reply_for]
+        elif thread_count == max_thread_count:
+            max_thread.append(reply_for)
+    return max_thread
 
 
 if __name__ == "__main__":
     messages = generate_chat_history()
-    print(f'User with most posts - {get_user_most_posts(messages)}')
-    print(f'User with most replies for her posts - {get_user_most_replied(messages)}')
-    print(f'User with mosts views for posts - {get_user_most_viewed(messages)}')
-    print(f'Longest thread with max replies - {get_longest_thread(messages)}')
+    chat_index = indexing_replies(messages)
+    chat_stat = get_posts_stats(messages, chat_index)
+    longest_thread = get_longest_thread_new(messages, chat_index)
+    print(f'User with most posts - {chat_stat[0]}')
+    print(f'User with most replies for her posts - {chat_stat[1]}')
+    print(f'User with mosts views for posts - {chat_stat[2]}')
+    print(f'Longest thread - {longest_thread[0]}')
     mornings_count, afternoon_counts, evening_counts = get_messages_daytime(messages)
     print(f'Morning posts - {mornings_count}, afternoon posts - {afternoon_counts}, evening posts - {evening_counts}')
